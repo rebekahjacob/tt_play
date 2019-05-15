@@ -91,6 +91,6 @@ att.df
 #bar graph of network degree centralization
 g<-ggplot(data = att.df, aes(x = category, y = deg_cent, fill=category)) +
      geom_bar(stat="identity") + theme_minimal()
-g+labs(title="Average Degree by Nobel Prize Publication Collaboration Network", 
+g+labs(title="Centralization (degree) by Nobel Prize Publication Collaboration Network", 
          x="Category of Publication Network", y = "Degree Centralization")
 ggsave("boring.png")
