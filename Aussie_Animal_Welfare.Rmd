@@ -1,0 +1,102 @@
+---
+title: "Tidy Tuesday"
+author: "Rebekah Jacob"
+date: "7/21/2020"
+output: html_document
+---
+
+# Packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggdark)
+library(extrafont)
+library(ggsci)
+library(DT)
+```
+
+# Data load
+```{r message=FALSE, warning=FALSE}
+brisbane_complaints <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-07-21/brisbane_complaints.csv')
+```
+
+# Data management
+Want to look at complaints over time, but the dates are messy and need cleaning.
+```{r}
+datatable(brisbane_complaints %>%
+  group_by(date_range) %>%
+  tally())
+```
+
+I create a "months" vector to pass to str_extract, then extract year and month name from string.
+```{r}
+months<- paste(c(tolower(month.abb), tolower(month.name)), collapse = "|")
+
+df<- brisbane_complaints %>%
+  mutate(year=str_extract(date_range, "[0-9]{4}"),
+         months=str_extract(date_range, months))
+```
+
+You can see that one won't work because it only says 1st quarter, not a month date.
+```{r}
+datatable(df %>%
+  group_by(year, months, date_range) %>%
+  tally())
+```
+
+So now I mutate months to a quarter number (1 through 4) from month name (so I can paste to year in next step). I know the one category is actually from Q1, so I use TRUE~"1" to force that in since there were no other NA's.
+```{r}
+df<- df %>%
+  mutate(
+    qtr=case_when(
+     months=="jan"~"1",
+     months=="apr"~"2",
+     months=="jul"~"3",
+     months=="oct"~"4",
+     TRUE~"1"),
+    yr_qtr=paste(year, qtr, sep = "-"))
+```
+
+Now I just want to grab the most common categories of complaints to make the plot readable. So I look to see which one's have the most complaints total. Then I create a new df with just those catagories.
+```{r}
+datatable(df %>%
+  group_by(category) %>%
+  tally() %>%
+  arrange(desc(n)))
+
+most_common<- df %>%
+  filter(category %in% c("Fencing Issues", "Wandering", "Attack On An Animal", "Attack On A Person"))
+```
+
+# Theme
+```{r}
+my_theme2<- dark_theme_gray(base_family = "Rockwell", base_size = 14) + 
+  theme(plot.title = element_text(family = "Rockwell", hjust=0.5),
+        plot.background = element_rect(fill = "grey10"),
+        panel.background = element_blank(),
+        panel.grid.major = element_line(color = "grey30", size = 0.2),
+        panel.grid.minor = element_line(color = "grey30", size = 0.2),
+        legend.background = element_blank(),
+         legend.position = "bottom", 
+        axis.text.x = element_text(angle=45),
+        legend.key = element_blank(),
+        legend.title = element_blank())
+```
+
+# Plot
+```{r}
+most_common %>%
+  group_by(yr_qtr, category) %>%
+  tally() %>%
+  ggplot(aes(x=yr_qtr, y=n, group=category, color=category)) + geom_line(size = 1.3) +
+  my_theme2 +
+  scale_color_locuszoom() +
+  labs(title = "Brisbane's most common animal complaints \nby year and quarter",
+             x = "", y = "Number of complaints", legend = "",
+             caption = "@RRJacob_STL")
+```
+
+# Save
+```{r}
+ggsave(file="Aussie_animal_complaints.png", width=10, height=7)
+```
+
