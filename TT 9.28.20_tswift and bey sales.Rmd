@@ -1,0 +1,109 @@
+---
+title: "TT 9.29.20"
+author: "Rebekah Jacob"
+date: "9/28/2020"
+output: html_document
+---
+
+# Libraries
+```{r}
+library(tidyverse)
+library(ggthemr)
+ggthemr('flat dark') #ggplot theme set for full document
+```
+
+
+# Data
+```{r}
+sales <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-29/sales.csv')
+
+```
+
+```{r}
+
+yearExtract <- function(string) {
+  t <- regmatches(string, regexec("[0-9]{4}", string))
+  sapply(t, function(x) {
+    if(length(x) > 0){
+      return(as.numeric(x))
+    } else {
+      return(NA)    
+    }
+  })
+}
+
+
+scaleFUN <- function(x) {
+  x/100000
+}
+
+sales %>%
+  mutate(country=case_when(
+    country %in% c("WW", "World")~"Worldwide",
+    country=="US"~"US",
+    country=="UK"~"UK"),
+    year=yearExtract(released)) %>%
+  filter(!is.na(country)) %>%
+  ggplot() +
+  geom_line(aes(y=sales, x = year, color = artist), size=1) +
+  scale_color_manual(values=c("hot pink", "purple")) +
+  facet_wrap(~country) +
+  scale_y_continuous(labels=scaleFUN) +
+  ggtitle("Bey and T-Swift record sales by country") +
+  ylab("Record sales in 100,000") +
+  labs(color= "Artist", caption = "@RRJacob_STL") +
+  theme(legend.position="bottom") +
+  annotate(geom="text", x=2008, y=9000000, label="Fearless",
+              color="purple", size=3, angle=90) +
+  annotate(geom="text", x=2003, y=9000000, label="Dangerously in Love",
+              color="hot pink", size=3, angle=90) +
+    annotate(geom="text", x=2014, y=2500000, label="1989",
+              color="purple", size=3, angle=90) +
+  annotate(geom="text", x=2006, y=2500000, label="B'Day",
+              color="hot pink", size=3, angle=90) +
+  annotate(geom="text", x=2012, y=2500000, label="Red",
+              color="purple", size=3, angle=90) +
+  annotate(geom="text", x=2008, y=2500000, label="I Am... Sasha Fierce",
+              color="hot pink", size=3, angle=90)
+
+```
+
+# Top records by artist, ID year for adding into plot
+```{r}
+sales %>%
+  group_by(artist, title) %>%
+  summarise(sum=sum(sales, na.rm=TRUE)) %>%
+  arrange(desc(artist, sum))
+```
+
+# Look at top sales for TS
+```{r}
+sales %>%
+  group_by(artist, title) %>%
+  filter(artist=="Taylor Swift") %>%
+  summarise(sum=sum(sales)) %>%
+  filter(sum>0) %>%
+  arrange(desc(sum)) %>%
+  ggplot +
+  geom_col(aes(y=sum/100000, x=reorder(title, -sum)), width=0.75, fill="purple") +
+   ggtitle("T-Swift record sales by album") +
+  ylab("Record sales in 100,000") +
+  xlab("Album title")
+```
+
+# Look at top sales by record for Bey
+```{r}
+sales %>%
+  group_by(artist, title) %>%
+  filter(grepl("Bey", artist)) %>%
+  summarise(sum=sum(sales)) %>%
+  filter(sum>0) %>%
+  arrange(desc(sum)) %>%
+  ggplot +
+  geom_col(aes(y=sum/100000, x=reorder(title, -sum)), width = 0.75, fill="hot pink") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+   ggtitle("Beyonce record sales by album") +
+  ylab("Record sales in 100,000") +
+  xlab("Album title")
+```
+
