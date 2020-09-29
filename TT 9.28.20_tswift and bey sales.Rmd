@@ -80,7 +80,9 @@ sales %>%
 ```{r}
 sales %>%
   group_by(artist, title) %>%
-  filter(artist=="Taylor Swift") %>%
+  mutate(ww=case_when(
+    country %in% c("WW", "World")~"Worldwide")) %>%
+  filter(artist=="Taylor Swift" & ww=="Worldwide") %>%
   summarise(sum=sum(sales)) %>%
   filter(sum>0) %>%
   arrange(desc(sum)) %>%
@@ -95,7 +97,9 @@ sales %>%
 ```{r}
 sales %>%
   group_by(artist, title) %>%
-  filter(grepl("Bey", artist)) %>%
+    mutate(ww=case_when(
+    country %in% c("WW", "World")~"Worldwide")) %>%
+  filter(grepl("Bey", artist) & ww=="Worldwide") %>%
   summarise(sum=sum(sales)) %>%
   filter(sum>0) %>%
   arrange(desc(sum)) %>%
