@@ -1,0 +1,111 @@
+---
+title: "Giant Pumkins!"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE)
+```
+# Intro
+
+This Tidy Tuesday caught my eye because a few of the columns were especially messy. Beyond that, I also saw network data hidden within, but to get to it, I would need to challenge myself a bit. I'm pretty used to fairly Tidy Data since I am often the person who sets up surveys and downloads the data (and so I can control much of the messiness that can abound).
+
+Anyway, I am not really happy with the code below, and I would have loved more time to play with this, but here is a "down and dirty" to clean up what's there so I can do something with it in igraph.
+
+# Loading packages
+```{r}
+library(tidyverse) #for data management
+library(ggthemr) #For ggplot pretty themes
+ggthemr("dust") #specifying which theme
+library(igraph) #This is for working with networks
+```
+
+# Get data
+```{r}
+#Loading data manually
+pumpkins <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-19/pumpkins.csv')
+```
+
+# create aggregate df for ggplot
+```{r}
+
+pumpkins_agg <- pumpkins %>%
+  separate(id, c("year", "type")) %>% #clean id var so that it separates year and type into 2 vars
+  group_by(year, type) %>% #group by so we can calc averages in next step
+  summarise(mean=mean(as.numeric(weight_lbs), na.rm = TRUE)) #have to make weight numeris to create "mean" variable
+
+#now pumkins_agg is a df that has mean weight by type and year
+```
+
+# create ggplot
+```{r}
+pumpkins_agg %>%
+  filter(type!="L" &type!="T") %>% #taking out long gourds since documentation says this is inches, not weight (and also tomatoes)
+  ggplot(aes(x = as.numeric(year), y =mean, color=type)) + 
+    geom_line(size=0.5) +
+  scale_x_continuous(breaks=c(2013:2021)) + #want years to be meaningful as x axis
+  ylab("Mean weight (lbs)")+
+  xlab("Year") +
+  ggtitle("The Greatest Pumpkin? Eat your heart out Charlie Brown!")+
+  scale_color_discrete(name = "Type", labels = c("Field Pumpkin","Giant Pumpkin","Giant Squash","Giant Watermelon"))
+```
+
+# Clean the seed mother names to prep for network graph
+
+This doesn't look like a lot of code, but a lot is happening here. First I have to clean the seed_mother variable (which is pretty messy), then I want to see which seed mothers are most popular (so that there are at least some interesting connections in a network). I take only the most popular also because I get to choose here to work with a smaller network for processing time and being able to actually view something that's worth looking at. Even after I narrowed to those most common seeds, the graph was still too huge to really see, so I limited to just the 2021 year.
+```{r}
+pumpkin_seed<-pumpkins %>%
+  separate(id, c("year", "type")) %>% #clean id var so that it separates year and type into 2 vars
+  mutate(new_seed_mother=gsub("[0-9]|[.]|[']|[,]", "", toupper(seed_mother))) #taking out digits and a few extra characters and making lal letters uppercase so I can handle names a bit easier, still not perfect, but only want most common anyway
+
+pumpkin_seed_agg<- pumpkin_seed %>%
+  group_by(new_seed_mother) %>% #Now see the most common seed mothers, and then grab them for my final df of seeds I want
+  tally() %>%
+  arrange(desc(n)) %>%
+  filter(n %in% 100:500)
+  
+
+pumpkin_names<- pumpkin_seed_agg$new_seed_mother #With the common seed names, create vector so I can pull them out in larger df, see %in% below
+
+
+seed_relate<- pumpkin_seed %>%
+  filter(year==2021 & new_seed_mother %in% pumpkin_names) %>% #limiting to 2021 (along with the most common seeds) so that the network is easier to see/handle
+  select(grower_name, new_seed_mother) #this is all we need for the network-- the alter and the ego
+```
+
+# Create network graph
+
+Important to note that this is an affiliation network or bipartite network because the nodes exist in 2 distinct domains (seed mother and grower) and only inter-domain ties exists (e.g. seed mothers do not have ties between seed mothers, only between growers and seed mothers). Another way to think about this is that growers are only "affiliated" with eachother because they share the same seed mother.
+
+And here is where I stop because I am out of time. But, the number of ways to continue to exmine this network are endless. Perhaps you changed the top grower (with heaviest pumpkin) to a different shape or color. Maybe you include more years and sequence the figure. Anyway, this is just a quick look at how you can run with this type of data.
+
+PS. I saved the figure as a pdf file because it's easier to see.
+```{r}
+g<- graph_from_data_frame(seed_relate, directed=FALSE) #create as network graph, directed=false because there is no direction
+g<- simplify(g, remove.multiple = TRUE, remove.loops = TRUE) #simplifying so we remove duplicates... if grower grew more than one pumpkin from the same seed mother, we don't really care because they would already be connected with that seed
+
+V(g)$type <- bipartite_mapping(g)$type #here we specify that its a bipartite network, and the 2 "domains" are type
+```
+
+```{r echo=TRUE, results='hide'}
+V(g)$color <- ifelse(V(g)$type, "#c96236", "#4aad92")
+V(g)$shape <- ifelse(V(g)$type, "circle", "square")
+E(g)$color <- "lightgray"
+
+
+pdf(file = "plot.pdf",   #Here I want to save a pdf of the network since it's easier to see
+    width = 30, #The width of the plot in inches
+    height = 30)#The width of the plot in inches
+
+plot(g, vertex.label.cex = 0.8,
+     vertex.size=2,
+     vertex.frame.color=NA,
+     vertex.label.color = "black",
+     layout = layout_with_graphopt,
+     title="Giant Pumpkin Seed Mother Network in 2021")
+     legend('bottom', c("Mother Seed", "Grower"), fill=c("#c96236", "#4aad92"))
+
+dev.off()
+```
+
+
