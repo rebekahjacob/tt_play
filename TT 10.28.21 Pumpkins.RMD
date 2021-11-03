@@ -93,7 +93,7 @@ V(g)$shape <- ifelse(V(g)$type, "circle", "square")
 E(g)$color <- "lightgray"
 
 
-pdf(file = "plot.pdf",   #Here I want to save a pdf of the network since it's easier to see
+pdf(file = "Pumpkins.pdf",   #Here I want to save a pdf of the network since it's easier to see
     width = 30, #The width of the plot in inches
     height = 30)#The width of the plot in inches
 
