@@ -1,0 +1,73 @@
+---
+title: "Dog Breeds"
+author: "Rebekah Jacob"
+date: "2/1/2022"
+output: html_document
+---
+
+# Data
+```{r}
+breed_traits <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-02-01/breed_traits.csv')
+```
+
+# Libraries
+```{r}
+library(tidyverse)
+```
+
+# Data management
+
+Creating correlation matrix to make heatmap.
+
+Followed example [here](http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization)
+```{r}
+cormat<- round(cor(breed_traits %>%
+  select_if(is.numeric) #taking just the numeric cells
+),
+2)
+```
+
+Function to remove redundant cells
+```{r}
+# Code pulled from example on sthda.com
+# Get lower triangle of the correlation matrix
+  get_lower_tri<-function(cormat){
+    cormat[upper.tri(cormat)] <- NA
+    return(cormat)
+  }
+  # Get upper triangle of the correlation matrix
+  get_upper_tri <- function(cormat){
+    cormat[lower.tri(cormat)]<- NA
+    return(cormat)
+  }
+```
+
+```{r}
+upper_tri <- get_upper_tri(cormat)
+```
+
+melt the data
+```{r}
+cor_mat_melt<- reshape2::melt(upper_tri, na.rm = TRUE)
+```
+
+# Plot
+```{r}
+ggplot(cor_mat_melt, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  scale_fill_gradient2(midpoint = 0, high="navy", low="light blue", limit = c(-1,1), 
+   name="Pearson\nCorrelation") +
+   theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 10, hjust = 1),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  legend.direction = "horizontal",
+  legend.position = c(0.75, 0.2)) +
+  ggtitle("Correlation of breed trait ratings")
+
+ggsave("Correlation of breed traits.jpg", width = 7, height=5)
+```
+
+
